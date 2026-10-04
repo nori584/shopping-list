@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f7f7f8">
+<title>お買い物リスト</title>
+<style>
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body {
+  margin:0; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+  background:#f7f7f8; color:#222; -webkit-tap-highlight-color:transparent;
+}
+header {
+  position:sticky; top:0; z-index:5; padding:calc(env(safe-area-inset-top) + 14px) 18px 12px;
+  background:rgba(247,247,248,.94); backdrop-filter:blur(12px);
+}
+h1 { margin:0; font-size:27px; }
+main { max-width:680px; margin:auto; padding:10px 14px 100px; }
+.card { background:white; border-radius:16px; margin:12px 0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+.row {
+  min-height:58px; display:flex; align-items:center; gap:12px; padding:0 16px;
+  border-bottom:1px solid #eee;
+}
+.row:last-child { border-bottom:0; }
+.item-btn { flex:1; border:0; background:none; text-align:left; font-size:18px; padding:17px 0; color:#222; }
+.check {
+  width:27px; height:27px; border-radius:50%; border:2px solid #bbb;
+  display:grid; place-items:center; font-size:16px; flex:none;
+}
+.added .check { background:#222; color:white; border-color:#222; }
+.added .item-btn { color:#777; }
+.empty { text-align:center; padding:50px 20px; color:#777; font-size:16px; }
+button { font:inherit; }
+.tabs {
+  position:fixed; left:0; right:0; bottom:0; z-index:10;
+  padding:8px 12px calc(8px + env(safe-area-inset-bottom));
+  background:rgba(255,255,255,.94); backdrop-filter:blur(14px);
+  border-top:1px solid #ddd; display:flex; justify-content:center;
+}
+.tab {
+  width:50%; max-width:330px; border:0; background:none; padding:9px 4px;
+  color:#777; font-size:13px;
+}
+.tab.active { color:#111; font-weight:700; }
+.tab span { display:block; font-size:23px; line-height:25px; margin-bottom:2px; }
+.section-title { margin:22px 4px 8px; font-size:14px; font-weight:700; color:#777; }
+.form { display:flex; gap:8px; padding:12px; }
+input {
+  flex:1; border:1px solid #ddd; border-radius:12px; padding:12px 13px;
+  font-size:17px; outline:none; background:#fafafa;
+}
+.primary {
+  border:0; border-radius:12px; padding:0 16px; background:#222; color:white; font-weight:700;
+}
+.delete {
+  border:0; background:none; color:#999; font-size:22px; padding:12px 0 12px 8px;
+}
+.hidden { display:none; }
+.small { font-size:13px; color:#888; margin:8px 4px 18px; }
+</style>
+</head>
+<body>
+<header><h1 id="title">今日買うもの</h1></header>
+
+<main>
+  <section id="todayScreen">
+    <div class="small" id="todayCount"></div>
+    <div class="card" id="todayList"></div>
+  </section>
+
+  <section id="masterScreen" class="hidden">
+    <div class="section-title">商品を追加</div>
+    <div class="card">
+      <div class="form">
+        <input id="newItem" placeholder="例：納豆" maxlength="40">
+        <button class="primary" onclick="addMaster()">追加</button>
+      </div>
+    </div>
+    <div class="section-title">いつもの商品</div>
+    <div class="card" id="masterList"></div>
+    <div class="small">商品をタップすると「今日買うもの」に追加／解除できます。</div>
+  </section>
+</main>
+
+<nav class="tabs">
+  <button class="tab active" id="todayTab" onclick="showScreen('today')"><span>🛒</span>今日買うもの</button>
+  <button class="tab" id="masterTab" onclick="showScreen('master')"><span>☷</span>いつもの商品</button>
+</nav>
+
+<script>
+const defaultItems = ["牛乳","食パン","卵","キャベツ","豚肉","トイレットペーパー"];
+let master = JSON.parse(localStorage.getItem("shopping_master") || "null") || defaultItems;
+let today = JSON.parse(localStorage.getItem("shopping_today") || "[]");
+
+function save() {
+  localStorage.setItem("shopping_master", JSON.stringify(master));
+  localStorage.setItem("shopping_today", JSON.stringify(today));
+}
+
+function showScreen(screen) {
+  const todayOn = screen === "today";
+  document.getElementById("todayScreen").classList.toggle("hidden", !todayOn);
+  document.getElementById("masterScreen").classList.toggle("hidden", todayOn);
+  document.getElementById("todayTab").classList.toggle("active", todayOn);
+  document.getElementById("masterTab").classList.toggle("active", !todayOn);
+  document.getElementById("title").textContent = todayOn ? "今日買うもの" : "いつもの商品";
+  render();
+}
+
+function render() {
+  const t = document.getElementById("todayList");
+  const m = document.getElementById("masterList");
+  document.getElementById("todayCount").textContent =
+    today.length ? `${today.length}個` : "買うものはありません";
+
+  t.innerHTML = today.length ? today.map((name) => `
+    <div class="row">
+      <button class="check" onclick="buy('${esc(name)}')" aria-label="${esc(name)}">✓</button>
+      <button class="item-btn" onclick="buy('${esc(name)}')">${esc(name)}</button>
+    </div>
+  `).join("") : `<div class="empty">買うものはありません<br><br>「いつもの商品」から追加できます</div>`;
+
+  m.innerHTML = master.length ? master.map((name) => {
+    const added = today.includes(name);
+    return `<div class="row ${added ? "added" : ""}">
+      <button class="check" onclick="toggleToday('${esc(name)}')">${added ? "✓" : ""}</button>
+      <button class="item-btn" onclick="toggleToday('${esc(name)}')">${esc(name)}</button>
+      <button class="delete" onclick="deleteMaster('${esc(name)}')" aria-label="削除">×</button>
+    </div>`;
+  }).join("") : `<div class="empty">いつもの商品がありません</div>`;
+}
+
+function toggleToday(name) {
+  if (today.includes(name)) today = today.filter(x => x !== name);
+  else today.push(name);
+  save(); render();
+}
+function buy(name) {
+  today = today.filter(x => x !== name);
+  save(); render();
+}
+function addMaster() {
+  const input = document.getElementById("newItem");
+  const name = input.value.trim();
+  if (!name || master.includes(name)) { input.focus(); return; }
+  master.push(name); input.value = ""; save(); render(); input.focus();
+}
+function deleteMaster(name) {
+  master = master.filter(x => x !== name);
+  today = today.filter(x => x !== name);
+  save(); render();
+}
+function esc(s) {
+  return s.replaceAll("&","&amp;").replaceAll("'","&#39;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+}
+document.getElementById("newItem").addEventListener("keydown", e => {
+  if (e.key === "Enter") addMaster();
+});
+save(); render();
+</script>
+</body>
+</html>
