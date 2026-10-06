@@ -6,161 +6,501 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f7f7f8">
-<title>お買い物リスト</title>
+<title>家族のお買い物リスト</title>
 <style>
 :root { color-scheme: light; }
 * { box-sizing: border-box; }
-body {
-  margin:0; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
-  background:#f7f7f8; color:#222; -webkit-tap-highlight-color:transparent;
-}
-header {
-  position:sticky; top:0; z-index:5; padding:calc(env(safe-area-inset-top) + 14px) 18px 12px;
-  background:rgba(247,247,248,.94); backdrop-filter:blur(12px);
-}
+body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif; background:#f7f7f8; color:#222; -webkit-tap-highlight-color:transparent; }
+header { position:sticky; top:0; z-index:5; padding:calc(env(safe-area-inset-top) + 14px) 18px 12px; background:rgba(247,247,248,.94); backdrop-filter:blur(12px); }
 h1 { margin:0; font-size:27px; }
 main { max-width:680px; margin:auto; padding:10px 14px 100px; }
 .card { background:white; border-radius:16px; margin:12px 0; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); }
-.row {
-  min-height:58px; display:flex; align-items:center; gap:12px; padding:0 16px;
-  border-bottom:1px solid #eee;
-}
+.row { min-height:58px; display:flex; align-items:center; gap:12px; padding:0 16px; border-bottom:1px solid #eee; }
 .row:last-child { border-bottom:0; }
 .item-btn { flex:1; border:0; background:none; text-align:left; font-size:18px; padding:17px 0; color:#222; }
-.check {
-  width:27px; height:27px; border-radius:50%; border:2px solid #bbb;
-  display:grid; place-items:center; font-size:16px; flex:none;
-}
+.check { width:27px; height:27px; border-radius:50%; border:2px solid #bbb; display:grid; place-items:center; font-size:16px; flex:none; }
 .added .check { background:#222; color:white; border-color:#222; }
-.added .item-btn { color:#777; }
+.added .item-btn { color:#777; text-decoration:line-through; }
 .empty { text-align:center; padding:50px 20px; color:#777; font-size:16px; }
-button { font:inherit; }
-.tabs {
-  position:fixed; left:0; right:0; bottom:0; z-index:10;
-  padding:8px 12px calc(8px + env(safe-area-inset-bottom));
-  background:rgba(255,255,255,.94); backdrop-filter:blur(14px);
-  border-top:1px solid #ddd; display:flex; justify-content:center;
-}
-.tab {
-  width:50%; max-width:330px; border:0; background:none; padding:9px 4px;
-  color:#777; font-size:13px;
-}
+button { font:inherit; cursor:pointer; }
+.tabs { position:fixed; left:0; right:0; bottom:0; z-index:10; padding:8px 8px calc(8px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.94); backdrop-filter:blur(14px); border-top:1px solid #ddd; display:flex; justify-content:center; }
+.tab { flex:1; max-width:180px; border:0; background:none; padding:9px 4px; color:#777; font-size:13px; }
 .tab.active { color:#111; font-weight:700; }
-.tab span { display:block; font-size:23px; line-height:25px; margin-bottom:2px; }
+.tab span { display:block; font-size:22px; line-height:25px; margin-bottom:2px; }
 .section-title { margin:22px 4px 8px; font-size:14px; font-weight:700; color:#777; }
 .form { display:flex; gap:8px; padding:12px; }
-input {
-  flex:1; border:1px solid #ddd; border-radius:12px; padding:12px 13px;
-  font-size:17px; outline:none; background:#fafafa;
-}
-.primary {
-  border:0; border-radius:12px; padding:0 16px; background:#222; color:white; font-weight:700;
-}
-.delete {
-  border:0; background:none; color:#999; font-size:22px; padding:12px 0 12px 8px;
-}
-.hidden { display:none; }
-.small { font-size:13px; color:#888; margin:8px 4px 18px; }
+input { flex:1; min-width:0; border:1px solid #ddd; border-radius:12px; padding:12px 13px; font-size:17px; outline:none; background:#fafafa; }
+.primary { border:0; border-radius:12px; padding:0 16px; background:#222; color:white; font-weight:700; }
+.secondary { border:1px solid #ddd; border-radius:12px; padding:11px 14px; background:white; font-weight:700; }
+.delete { border:0; background:none; color:#999; font-size:22px; padding:12px 0 12px 8px; }
+.room-code { font-size:32px; letter-spacing:5px; font-weight:800; text-align:center; padding:18px; }
+.notice { padding:12px 16px; color:#666; font-size:14px; line-height:1.6; }
+.actions { display:flex; gap:8px; padding:12px; }
+.actions button { flex:1; }
+.status { font-size:12px; color:#777; margin-top:4px; }
 </style>
 </head>
 <body>
-<header><h1 id="title">今日買うもの</h1></header>
+<header>
+  <h1>🛒 家族のお買い物リスト</h1>
+  <div id="status" class="status">接続中…</div>
+</header>
 
-<main>
-  <section id="todayScreen">
-    <div class="small" id="todayCount"></div>
-    <div class="card" id="todayList"></div>
-  </section>
-
-  <section id="masterScreen" class="hidden">
-    <div class="section-title">商品を追加</div>
-    <div class="card">
-      <div class="form">
-        <input id="newItem" placeholder="例：納豆" maxlength="40">
-        <button class="primary" onclick="addMaster()">追加</button>
-      </div>
-    </div>
-    <div class="section-title">いつもの商品</div>
-    <div class="card" id="masterList"></div>
-    <div class="small">商品をタップすると「今日買うもの」に追加／解除できます。</div>
-  </section>
-</main>
+<main id="app"></main>
 
 <nav class="tabs">
-  <button class="tab active" id="todayTab" onclick="showScreen('today')"><span>🛒</span>今日買うもの</button>
-  <button class="tab" id="masterTab" onclick="showScreen('master')"><span>☷</span>いつもの商品</button>
+  <button class="tab active" data-tab="today"><span>🛒</span>今日</button>
+  <button class="tab" data-tab="next"><span>📦</span>次回</button>
+  <button class="tab" data-tab="master"><span>⭐</span>いつもの商品</button>
+  <button class="tab" data-tab="share"><span>👨‍👩‍👧</span>共有</button>
 </nav>
 
-<script>
-const defaultItems = ["牛乳","食パン","卵","キャベツ","豚肉","トイレットペーパー"];
-let master = JSON.parse(localStorage.getItem("shopping_master") || "null") || defaultItems;
-let today = JSON.parse(localStorage.getItem("shopping_today") || "[]");
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import {
+  getAuth, signInAnonymously, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
-function save() {
-  localStorage.setItem("shopping_master", JSON.stringify(master));
-  localStorage.setItem("shopping_today", JSON.stringify(today));
+const firebaseConfig = {
+  apiKey: "AIzaSyD6KciypGwfESOTLsExRpBAOvo8m5H4dMI",
+  authDomain: "shopping-list-41cd9.firebaseapp.com",
+  projectId: "shopping-list-41cd9",
+  storageBucket: "shopping-list-41cd9.firebasestorage.app",
+  messagingSenderId: "216263202274",
+  appId: "1:216263202274:web:e019f54107fd73a77f95bb",
+  measurementId: "G-G6Y8TL9GV5"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const DEFAULT_MASTER = ["牛乳","食パン","卵","キャベツ","豚肉","トイレットペーパー"]
+  .map(name => ({id: crypto.randomUUID(), name}));
+
+let uid = null;
+let roomId = localStorage.getItem("shopping_room") || "";
+let activeTab = "today";
+let unsubscribe = null;
+let state = {today:[], next:[], master:DEFAULT_MASTER};
+
+const $ = id => document.getElementById(id);
+const appEl = $("app");
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
 }
 
-function showScreen(screen) {
-  const todayOn = screen === "today";
-  document.getElementById("todayScreen").classList.toggle("hidden", !todayOn);
-  document.getElementById("masterScreen").classList.toggle("hidden", todayOn);
-  document.getElementById("todayTab").classList.toggle("active", todayOn);
-  document.getElementById("masterTab").classList.toggle("active", !todayOn);
-  document.getElementById("title").textContent = todayOn ? "今日買うもの" : "いつもの商品";
-  render();
+function setStatus(s) { $("status").textContent = s; }
+
+function newItem(name) {
+  return {id: crypto.randomUUID(), name:name.trim()};
+}
+
+async function saveState() {
+  if (!roomId || !uid) return;
+  const ref = doc(db, "rooms", roomId, "lists", "shopping");
+  await setDoc(ref, {
+    today: state.today,
+    next: state.next,
+    master: state.master,
+    updatedAt: serverTimestamp(),
+    updatedBy: uid
+  }, {merge:true});
 }
 
 function render() {
-  const t = document.getElementById("todayList");
-  const m = document.getElementById("masterList");
-  document.getElementById("todayCount").textContent =
-    today.length ? `${today.length}個` : "買うものはありません";
+  document.querySelectorAll(".tab").forEach(b =>
+    b.classList.toggle("active", b.dataset.tab === activeTab)
+  );
 
-  t.innerHTML = today.length ? today.map((name) => `
+  if (activeTab === "today") renderToday();
+  if (activeTab === "next") renderNext();
+  if (activeTab === "master") renderMaster();
+  if (activeTab === "share") renderShare();
+}
+
+function listRows(items, mode) {
+  if (!items.length) return '<div class="empty">まだありません</div>';
+  return items.map(item => `
     <div class="row">
-      <button class="check" onclick="buy('${esc(name)}')" aria-label="${esc(name)}">✓</button>
-      <button class="item-btn" onclick="buy('${esc(name)}')">${esc(name)}</button>
+      <button class="item-btn" data-action="${mode}" data-id="${item.id}">${esc(item.name)}</button>
+      <button class="delete" data-action="delete-${mode}" data-id="${item.id}">×</button>
     </div>
-  `).join("") : `<div class="empty">買うものはありません<br><br>「いつもの商品」から追加できます</div>`;
-
-  m.innerHTML = master.length ? master.map((name) => {
-    const added = today.includes(name);
-    return `<div class="row ${added ? "added" : ""}">
-      <button class="check" onclick="toggleToday('${esc(name)}')">${added ? "✓" : ""}</button>
-      <button class="item-btn" onclick="toggleToday('${esc(name)}')">${esc(name)}</button>
-      <button class="delete" onclick="deleteMaster('${esc(name)}')" aria-label="削除">×</button>
-    </div>`;
-  }).join("") : `<div class="empty">いつもの商品がありません</div>`;
+  `).join("");
 }
 
-function toggleToday(name) {
-  if (today.includes(name)) today = today.filter(x => x !== name);
-  else today.push(name);
-  save(); render();
+function renderToday() {
+  appEl.innerHTML = `
+    <div class="section-title">今日買うもの</div>
+    <div class="card">
+      ${state.today.length ? state.today.map(item => `
+        <div class="row ${item.done ? "added":""}">
+          <button class="check" data-action="toggle-today" data-id="${item.id}">${item.done ? "✓":""}</button>
+          <button class="item-btn" data-action="toggle-today" data-id="${item.id}">${esc(item.name)}</button>
+          <button class="delete" data-action="delete-today" data-id="${item.id}">×</button>
+        </div>
+      `).join("") : '<div class="empty">今日買うものはありません</div>'}
+    </div>
+
+    <div class="section-title">商品を追加</div>
+    <div class="card">
+      <div class="form">
+        <input id="todayInput" placeholder="商品名">
+        <button class="primary" data-action="add-today">追加</button>
+      </div>
+    </div>
+
+    <div class="section-title">いつもの商品から追加</div>
+    <div class="card">
+      ${listRows(state.master, "add-master-today")}
+    </div>
+  `;
 }
-function buy(name) {
-  today = today.filter(x => x !== name);
-  save(); render();
+
+function renderNext() {
+  appEl.innerHTML = `
+    <div class="section-title">次に買うもの</div>
+    <div class="card">
+      ${state.next.length ? state.next.map(item => `
+        <div class="row">
+          <button class="item-btn" data-action="move-next-today" data-id="${item.id}">${esc(item.name)}</button>
+          <button class="secondary" data-action="move-next-today" data-id="${item.id}">今日へ</button>
+          <button class="delete" data-action="delete-next" data-id="${item.id}">×</button>
+        </div>
+      `).join("") : '<div class="empty">次に買うものはありません</div>'}
+    </div>
+
+    <div class="card">
+      <div class="actions">
+        <button class="primary" data-action="move-all-next">全部を今日へ</button>
+      </div>
+    </div>
+
+    <div class="section-title">商品を追加</div>
+    <div class="card">
+      <div class="form">
+        <input id="nextInput" placeholder="商品名">
+        <button class="primary" data-action="add-next">追加</button>
+      </div>
+    </div>
+
+    <div class="section-title">いつもの商品から追加</div>
+    <div class="card">
+      ${listRows(state.master, "add-master-next")}
+    </div>
+  `;
 }
-function addMaster() {
-  const input = document.getElementById("newItem");
-  const name = input.value.trim();
-  if (!name || master.includes(name)) { input.focus(); return; }
-  master.push(name); input.value = ""; save(); render(); input.focus();
+
+function renderMaster() {
+  appEl.innerHTML = `
+    <div class="section-title">いつもの商品</div>
+    <div class="card">
+      ${state.master.length ? state.master.map(item => `
+        <div class="row">
+          <button class="item-btn">${esc(item.name)}</button>
+          <button class="secondary" data-action="add-master-today" data-id="${item.id}">今日</button>
+          <button class="secondary" data-action="add-master-next" data-id="${item.id}">次回</button>
+          <button class="delete" data-action="delete-master" data-id="${item.id}">×</button>
+        </div>
+      `).join("") : '<div class="empty">いつもの商品はありません</div>'}
+    </div>
+
+    <div class="section-title">商品を追加</div>
+    <div class="card">
+      <div class="form">
+        <input id="masterInput" placeholder="商品名">
+        <button class="primary" data-action="add-master">追加</button>
+      </div>
+    </div>
+  `;
 }
-function deleteMaster(name) {
-  master = master.filter(x => x !== name);
-  today = today.filter(x => x !== name);
-  save(); render();
+
+function renderShare() {
+  if (!roomId) {
+    appEl.innerHTML = `
+      <div class="section-title">家族で共有</div>
+      <div class="card">
+        <div class="notice">
+          共有ルームを作ると、家族のiPhoneなどから同じ買い物リストを見たり編集したりできます。
+        </div>
+        <div class="actions">
+          <button class="primary" data-action="create-room">共有ルームを作る</button>
+        </div>
+      </div>
+
+      <div class="section-title">既存のルームに参加</div>
+      <div class="card">
+        <div class="form">
+          <input id="roomInput" maxlength="6" placeholder="6文字の共有コード">
+          <button class="primary" data-action="join-room">参加</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  appEl.innerHTML = `
+    <div class="section-title">共有ルーム</div>
+    <div class="card">
+      <div class="notice">このコードを家族の端末に入力してください。</div>
+      <div class="room-code">${esc(roomId)}</div>
+      <div class="actions">
+        <button class="secondary" data-action="copy-room">コードをコピー</button>
+        <button class="secondary" data-action="leave-room">共有から抜ける</button>
+      </div>
+    </div>
+  `;
 }
-function esc(s) {
-  return s.replaceAll("&","&amp;").replaceAll("'","&#39;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;");
+
+async function createRoom() {
+  if (!uid) return alert("まだFirebaseに接続中です。少し待ってください。");
+
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "";
+  for (let i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
+
+  try {
+    const roomRef = doc(db, "rooms", code);
+    const roomSnap = await getDoc(roomRef);
+    if (roomSnap.exists()) return createRoom();
+
+    await setDoc(roomRef, {
+      owner: uid,
+      createdAt: serverTimestamp()
+    });
+
+    await setDoc(doc(db, "rooms", code, "members", uid), {
+      joinedAt: serverTimestamp()
+    });
+
+    await setDoc(doc(db, "rooms", code, "lists", "shopping"), {
+      today: state.today,
+      next: state.next,
+      master: state.master,
+      updatedAt: serverTimestamp(),
+      updatedBy: uid
+    });
+
+    roomId = code;
+    localStorage.setItem("shopping_room", roomId);
+    connectRoom();
+    render();
+    setStatus("共有中");
+  } catch(e) {
+    console.error(e);
+    alert("共有ルームを作れませんでした。\n" + e.message);
+  }
 }
-document.getElementById("newItem").addEventListener("keydown", e => {
-  if (e.key === "Enter") addMaster();
+
+async function joinRoom() {
+  if (!uid) return alert("まだFirebaseに接続中です。少し待ってください。");
+
+  const input = $("roomInput");
+  const code = input ? input.value.trim().toUpperCase() : "";
+  if (!/^[A-Z0-9]{6}$/.test(code)) {
+    alert("6文字の共有コードを入力してください。");
+    return;
+  }
+
+  try {
+    // ルーム自体を先に読む必要はない。
+    // Security Rulesで「roomが存在する場合のみmember作成」を許可する設計。
+    await setDoc(doc(db, "rooms", code, "members", uid), {
+      joinedAt: serverTimestamp()
+    });
+
+    const listRef = doc(db, "rooms", code, "lists", "shopping");
+    const listSnap = await getDoc(listRef);
+    if (!listSnap.exists()) throw new Error("共有ルームが見つかりません。");
+
+    roomId = code;
+    localStorage.setItem("shopping_room", roomId);
+    connectRoom();
+    render();
+    setStatus("共有中");
+  } catch(e) {
+    console.error(e);
+    alert("参加できませんでした。\n共有コードが正しいか確認してください。");
+  }
+}
+
+function connectRoom() {
+  if (unsubscribe) unsubscribe();
+  if (!roomId) return;
+
+  const ref = doc(db, "rooms", roomId, "lists", "shopping");
+  unsubscribe = onSnapshot(ref, snap => {
+    if (snap.exists()) {
+      const d = snap.data();
+      state.today = Array.isArray(d.today) ? d.today : [];
+      state.next = Array.isArray(d.next) ? d.next : [];
+      state.master = Array.isArray(d.master) ? d.master : DEFAULT_MASTER;
+      render();
+      setStatus("共有中・同期済み");
+    }
+  }, err => {
+    console.error(err);
+    setStatus("共有接続エラー");
+  });
+}
+
+async function leaveRoom() {
+  if (!confirm("この端末の共有ルーム設定を解除しますか？")) return;
+  if (unsubscribe) unsubscribe();
+  unsubscribe = null;
+  roomId = "";
+  localStorage.removeItem("shopping_room");
+  setStatus("ローカルモード");
+  render();
+}
+
+function findItem(list, id) {
+  return list.find(x => x.id === id);
+}
+
+document.addEventListener("click", async e => {
+  const el = e.target.closest("[data-action]");
+  if (!el) return;
+
+  const action = el.dataset.action;
+  const id = el.dataset.id;
+
+  try {
+    if (action === "create-room") return createRoom();
+    if (action === "join-room") return joinRoom();
+    if (action === "copy-room") {
+      await navigator.clipboard.writeText(roomId);
+      alert("共有コードをコピーしました。");
+      return;
+    }
+    if (action === "leave-room") return leaveRoom();
+
+    if (action === "add-today") {
+      const input = $("todayInput");
+      const name = input.value.trim();
+      if (!name) return;
+      state.today.push(newItem(name));
+      input.value = "";
+    }
+
+    if (action === "add-next") {
+      const input = $("nextInput");
+      const name = input.value.trim();
+      if (!name) return;
+      state.next.push(newItem(name));
+      input.value = "";
+    }
+
+    if (action === "add-master") {
+      const input = $("masterInput");
+      const name = input.value.trim();
+      if (!name) return;
+      if (state.master.some(x => x.name === name)) return alert("同じ商品がすでにあります。");
+      state.master.push(newItem(name));
+      input.value = "";
+    }
+
+    if (action === "toggle-today") {
+      const item = findItem(state.today, id);
+      if (item) item.done = !item.done;
+    }
+
+    if (action === "delete-today") {
+      state.today = state.today.filter(x => x.id !== id);
+    }
+
+    if (action === "delete-next") {
+      state.next = state.next.filter(x => x.id !== id);
+    }
+
+    if (action === "delete-master") {
+      state.master = state.master.filter(x => x.id !== id);
+    }
+
+    if (action === "add-master-today") {
+      const item = findItem(state.master, id);
+      if (item && !state.today.some(x => x.name === item.name)) {
+        state.today.push(newItem(item.name));
+      }
+    }
+
+    if (action === "add-master-next") {
+      const item = findItem(state.master, id);
+      if (item && !state.next.some(x => x.name === item.name)) {
+        state.next.push(newItem(item.name));
+      }
+    }
+
+    if (action === "move-next-today") {
+      const item = findItem(state.next, id);
+      if (item) {
+        if (!state.today.some(x => x.name === item.name)) state.today.push(newItem(item.name));
+        state.next = state.next.filter(x => x.id !== id);
+      }
+    }
+
+    if (action === "move-all-next") {
+      for (const item of state.next) {
+        if (!state.today.some(x => x.name === item.name)) state.today.push(newItem(item.name));
+      }
+      state.next = [];
+    }
+
+    if (action.startsWith("delete-") && action !== "delete-today" && action !== "delete-next" && action !== "delete-master") {
+      return;
+    }
+
+    render();
+    await saveState();
+
+  } catch(e) {
+    console.error(e);
+    alert("保存中にエラーが発生しました。\n" + e.message);
+  }
 });
-save(); render();
+
+document.querySelectorAll(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    activeTab = btn.dataset.tab;
+    render();
+  });
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const ids = ["todayInput","nextInput","masterInput","roomInput"];
+  if (!ids.includes(document.activeElement?.id)) return;
+  const map = {
+    todayInput:"add-today",
+    nextInput:"add-next",
+    masterInput:"add-master",
+    roomInput:"join-room"
+  };
+  const action = map[document.activeElement.id];
+  document.querySelector(`[data-action="${action}"]`)?.click();
+});
+
+onAuthStateChanged(auth, user => {
+  if (!user) return;
+  uid = user.uid;
+  setStatus(roomId ? "共有ルームに接続中…" : "ローカルモード");
+  if (roomId) connectRoom();
+  render();
+});
+
+signInAnonymously(auth).catch(e => {
+  console.error(e);
+  setStatus("Firebase接続エラー");
+  alert("Firebaseの匿名ログインに失敗しました。Authenticationの「匿名」が有効か確認してください。");
+});
+
+render();
 </script>
 </body>
 </html>
