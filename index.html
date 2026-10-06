@@ -266,9 +266,10 @@ async function createRoom() {
   for (let i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
 
   try {
+    // 6文字のコードを生成して、そのまま作成を試みる。
+    // 既存ルームの事前読み取りは、未参加ユーザーには
+    // Security Rulesで許可されていないため行わない。
     const roomRef = doc(db, "rooms", code);
-    const roomSnap = await getDoc(roomRef);
-    if (roomSnap.exists()) return createRoom();
 
     await setDoc(roomRef, {
       owner: uid,
