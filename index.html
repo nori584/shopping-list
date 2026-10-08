@@ -24,7 +24,7 @@ main { max-width:680px; margin:auto; padding:10px 14px 100px; }
 .empty { text-align:center; padding:50px 20px; color:#777; font-size:16px; }
 button { font:inherit; cursor:pointer; }
 .tabs { position:fixed; left:0; right:0; bottom:0; z-index:10; padding:8px 8px calc(8px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.94); backdrop-filter:blur(14px); border-top:1px solid #ddd; display:flex; justify-content:center; }
-.tab { flex:1; max-width:180px; border:0; background:none; padding:9px 4px; color:#777; font-size:13px; }
+.tab { flex:1; max-width:140px; border:0; background:none; padding:9px 4px; color:#777; font-size:13px; }
 .tab.active { color:#111; font-weight:700; }
 .tab span { display:block; font-size:22px; line-height:25px; margin-bottom:2px; }
 .section-title { margin:22px 4px 8px; font-size:14px; font-weight:700; color:#777; }
@@ -37,7 +37,7 @@ input { flex:1; min-width:0; border:1px solid #ddd; border-radius:12px; padding:
 .notice { padding:12px 16px; color:#666; font-size:14px; line-height:1.6; }
 .actions { display:flex; gap:8px; padding:12px; }
 .actions button { flex:1; }
-.status { font-size:12px; color:#777; margin-top:4px; }
+.status { font-size:12px; color:#777; margin-top:4px; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -52,6 +52,7 @@ input { flex:1; min-width:0; border:1px solid #ddd; border-radius:12px; padding:
   <button class="tab active" data-tab="today"><span>🛒</span>今日</button>
   <button class="tab" data-tab="next"><span>📦</span>次回</button>
   <button class="tab" data-tab="master"><span>⭐</span>いつもの商品</button>
+  <button class="tab" data-tab="history"><span>📚</span>履歴</button>
   <button class="tab" data-tab="share"><span>👨‍👩‍👧</span>共有</button>
 </nav>
 
@@ -85,7 +86,7 @@ let uid = null;
 let roomId = localStorage.getItem("shopping_room") || "";
 let activeTab = "today";
 let unsubscribe = null;
-let state = {today:[], next:[], master:DEFAULT_MASTER};
+let state = {today:[], next:[], master:DEFAULT_MASTER, history:[]};
 
 const $ = id => document.getElementById(id);
 const appEl = $("app");
@@ -109,6 +110,7 @@ async function saveState() {
     today: state.today,
     next: state.next,
     master: state.master,
+    history: state.history,
     updatedAt: serverTimestamp(),
     updatedBy: uid
   }, {merge:true});
@@ -122,6 +124,7 @@ function render() {
   if (activeTab === "today") renderToday();
   if (activeTab === "next") renderNext();
   if (activeTab === "master") renderMaster();
+  if (activeTab === "history") renderHistory();
   if (activeTab === "share") renderShare();
 }
 
@@ -221,6 +224,44 @@ function renderMaster() {
   `;
 }
 
+
+function formatHistoryDate(ts) {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "日付不明";
+  return d.toLocaleDateString("ja-JP", {
+    year: "numeric", month: "2-digit", day: "2-digit", weekday: "short"
+  });
+}
+
+function renderHistory() {
+  const groups = {};
+  [...state.history]
+    .sort((a,b) => (b.purchasedAt || 0) - (a.purchasedAt || 0))
+    .forEach(item => {
+      const key = formatHistoryDate(item.purchasedAt);
+      (groups[key] ||= []).push(item);
+    });
+
+  const body = Object.keys(groups).length
+    ? Object.entries(groups).map(([date, items]) => `
+        <div class="section-title">${esc(date)}</div>
+        <div class="card">
+          ${items.map(item => `
+            <div class="row">
+              <button class="item-btn">${esc(item.name)}</button>
+            </div>
+          `).join("")}
+        </div>
+      `).join("")
+    : '<div class="card"><div class="empty">まだ購入履歴はありません</div></div>';
+
+  appEl.innerHTML = `
+    <div class="section-title">購入履歴</div>
+    <div class="notice">「今日」の商品を購入済みにすると、自動的にここへ記録されます。</div>
+    ${body}
+  `;
+}
+
 function renderShare() {
   if (!roomId) {
     appEl.innerHTML = `
@@ -284,6 +325,7 @@ async function createRoom() {
       today: state.today,
       next: state.next,
       master: state.master,
+      history: state.history,
       updatedAt: serverTimestamp(),
       updatedBy: uid
     });
@@ -342,6 +384,7 @@ function connectRoom() {
       state.today = Array.isArray(d.today) ? d.today : [];
       state.next = Array.isArray(d.next) ? d.next : [];
       state.master = Array.isArray(d.master) ? d.master : DEFAULT_MASTER;
+      state.history = Array.isArray(d.history) ? d.history : [];
       render();
       setStatus("共有中・同期済み");
     }
@@ -409,7 +452,15 @@ document.addEventListener("click", async e => {
 
     if (action === "toggle-today") {
       const item = findItem(state.today, id);
-      if (item) item.done = !item.done;
+      if (item) {
+        state.history.push({
+          id: crypto.randomUUID(),
+          name: item.name,
+          purchasedAt: new Date(new Date().toLocaleDateString("en-CA")).getTime(),
+          purchasedBy: uid
+        });
+        state.today = state.today.filter(x => x.id !== id);
+      }
     }
 
     if (action === "delete-today") {
