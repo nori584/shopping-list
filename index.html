@@ -234,13 +234,15 @@ function formatHistoryDate(ts) {
 }
 
 function renderHistory() {
+  const query = ($("historySearch")?.value || "").trim().toLocaleLowerCase("ja-JP");
+  const filtered = [...state.history]
+    .filter(item => !query || String(item.name || "").toLocaleLowerCase("ja-JP").includes(query))
+    .sort((a,b) => (b.purchasedAt || 0) - (a.purchasedAt || 0));
   const groups = {};
-  [...state.history]
-    .sort((a,b) => (b.purchasedAt || 0) - (a.purchasedAt || 0))
-    .forEach(item => {
-      const key = formatHistoryDate(item.purchasedAt);
-      (groups[key] ||= []).push(item);
-    });
+  filtered.forEach(item => {
+    const key = formatHistoryDate(item.purchasedAt);
+    (groups[key] ||= []).push(item);
+  });
 
   const body = Object.keys(groups).length
     ? Object.entries(groups).map(([date, items]) => `
@@ -248,18 +250,32 @@ function renderHistory() {
         <div class="card">
           ${items.map(item => `
             <div class="row">
-              <button class="item-btn">${esc(item.name)}</button>
+              <div class="item-btn">${esc(item.name)}</div>
+              <button class="delete" data-action="delete-history" data-id="${item.id}" aria-label="${esc(item.name)}の履歴を削除" title="履歴を削除">×</button>
             </div>
           `).join("")}
         </div>
       `).join("")
-    : '<div class="card"><div class="empty">まだ購入履歴はありません</div></div>';
+    : `<div class="card"><div class="empty">${query ? "検索結果がありません" : "まだ購入履歴はありません"}</div></div>`;
 
   appEl.innerHTML = `
     <div class="section-title">購入履歴</div>
-    <div class="notice">「今日」の商品を購入済みにすると、自動的にここへ記録されます。</div>
+    <div class="card">
+      <input id="historySearch" type="search" placeholder="商品名で検索" value="${esc($(
+        "historySearch"
+      )?.value || "")}">
+    </div>
+    <div class="notice">商品名で検索できます。×を押すと、その履歴を家族共有の履歴から削除します。</div>
     ${body}
   `;
+  $("historySearch")?.addEventListener("input", () => {
+    const input = $("historySearch");
+    const position = input.selectionStart;
+    renderHistory();
+    const nextInput = $("historySearch");
+    nextInput?.focus();
+    nextInput?.setSelectionRange(position, position);
+  });
 }
 
 function renderShare() {
@@ -475,6 +491,13 @@ document.addEventListener("click", async e => {
       state.master = state.master.filter(x => x.id !== id);
     }
 
+    if (action === "delete-history") {
+      const item = state.history.find(x => x.id === id);
+      if (!item) return;
+      if (!confirm(`「${item.name}」の購入履歴を削除しますか？\n家族で共有している履歴からも削除されます。`)) return;
+      state.history = state.history.filter(x => x.id !== id);
+    }
+
     if (action === "add-master-today") {
       const item = findItem(state.master, id);
       if (item && !state.today.some(x => x.name === item.name)) {
@@ -504,7 +527,7 @@ document.addEventListener("click", async e => {
       state.next = [];
     }
 
-    if (action.startsWith("delete-") && action !== "delete-today" && action !== "delete-next" && action !== "delete-master") {
+    if (action.startsWith("delete-") && action !== "delete-today" && action !== "delete-next" && action !== "delete-master" && action !== "delete-history") {
       return;
     }
 
