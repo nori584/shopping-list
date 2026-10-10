@@ -233,8 +233,8 @@ function formatHistoryDate(ts) {
   });
 }
 
-function renderHistory() {
-  const query = ($("historySearch")?.value || "").trim().toLocaleLowerCase("ja-JP");
+function renderHistoryResults(rawQuery = "") {
+  const query = String(rawQuery || "").trim().toLocaleLowerCase("ja-JP");
   const filtered = [...state.history]
     .filter(item => !query || String(item.name || "").toLocaleLowerCase("ja-JP").includes(query))
     .sort((a,b) => (b.purchasedAt || 0) - (a.purchasedAt || 0));
@@ -258,24 +258,27 @@ function renderHistory() {
       `).join("")
     : `<div class="card"><div class="empty">${query ? "検索結果がありません" : "まだ購入履歴はありません"}</div></div>`;
 
+  const results = $("historyResults");
+  if (results) results.innerHTML = body;
+}
+
+function renderHistory() {
   appEl.innerHTML = `
     <div class="section-title">購入履歴</div>
     <div class="card">
-      <input id="historySearch" type="search" placeholder="商品名で検索" value="${esc($(
-        "historySearch"
-      )?.value || "")}">
+      <input id="historySearch" type="search" placeholder="商品名で検索" autocomplete="off">
     </div>
     <div class="notice">商品名で検索できます。×を押すと、その履歴を家族共有の履歴から削除します。</div>
-    ${body}
+    <div id="historyResults"></div>
   `;
-  $("historySearch")?.addEventListener("input", () => {
-    const input = $("historySearch");
-    const position = input.selectionStart;
-    renderHistory();
-    const nextInput = $("historySearch");
-    nextInput?.focus();
-    nextInput?.setSelectionRange(position, position);
+
+  const input = $("historySearch");
+  input?.addEventListener("input", () => {
+    // 入力欄自体は作り直さず、結果部分だけを更新するため、
+    // 日本語IMEの変換やカーソル位置が維持されます。
+    renderHistoryResults(input.value);
   });
+  renderHistoryResults("");
 }
 
 function renderShare() {
